@@ -5,8 +5,8 @@ import requests
 import streamlit as st
 from google import genai
 
-client = genai.Client(api_key='AQ.Ab8RN6Iiuf82C0Sg4rKGs-RlbvDF5wx-dxKyrR75OUT99VY4mA')
-NASA_KEY = 'eqrAk1Ndtw3gVyOnsiDB7IWwkIpFHwDhHQVxoZ6r'
+client = genai.Client(api_key=st.secrets['GEMINI_KEY'])
+NASA_KEY = st.secrets['NASA_KEY']
 
 subjects = ['YouTube Coach', 'Asteroid Tutor', 'Business Tutor', 'NASA Live']
 
