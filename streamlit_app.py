@@ -229,7 +229,7 @@ if st.session_state.auth_mode in ('login', 'signup'):
 st.caption(f'Current chat: {subject} | 🏆 {st.session_state.points} pts')
 
 if subject == 'YouTube Coach':
-    raw = open('videos.csv', encoding='utf-8').readlines()
+    raw = open('videoss.csv', encoding='utf-8').readlines()
     persona = 'You are NovaClip, a YouTube coach for teen creators 13-18.'
 elif subject == 'Asteroid Tutor':
     raw = open('dataset.csv', encoding='utf-8').readlines()
