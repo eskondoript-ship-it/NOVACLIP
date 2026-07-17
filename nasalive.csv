@@ -1,0 +1,29 @@
+import requests, csv, datetime
+
+KEY = 'eqrAk1Ndtw3gVyOnsiDB7IWwkIpFHwDhHQVxoZ6r'
+today = datetime.date.today()
+start = today.strftime('%Y-%m-%d')
+end = (today + datetime.timedelta(days=7)).strftime('%Y-%m-%d')
+
+url = 'https://api.nasa.gov/neo/rest/v1/feed'
+r = requests.get(url, params={'start_date': start, 'end_date': end, 'api_key': KEY}).json()
+
+rows = []
+for date, asteroids in r.get('near_earth_objects', {}).items():
+    for a in asteroids:
+        approach = a['close_approach_data'][0]
+        rows.append([
+            a['name'],
+            date,
+            round(float(a['estimated_diameter']['meters']['estimated_diameter_max']), 1),
+            round(float(approach['relative_velocity']['kilometers_per_hour']), 0),
+            round(float(approach['miss_distance']['kilometers']), 0),
+            a['is_potentially_hazardous_asteroid'],
+        ])
+
+with open('nasa.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f)
+    w.writerow(['name', 'date', 'max_diameter_m', 'speed_kmh', 'miss_distance_km', 'hazardous'])
+    w.writerows(rows)
+
+print('Saved', len(rows), 'asteroids to nasalive.csv')
