@@ -1,12 +1,20 @@
 import time
 import os
 import hashlib
+import datetime
+import calendar as cal
 import requests
 import streamlit as st
 from google import genai
 
-client = genai.Client(api_key=st.secrets['GEMINI_KEY'])
-NASA_KEY = st.secrets['NASA_KEY']
+try:
+    GKEY = st.secrets['AQ.Ab8RN6Iiuf82C0Sg4rKGs-RlbvDF5wx-dxKyrR75OUT99VY4mA']
+    NASA_KEY = st.secrets['eqrAk1Ndtw3gVyOnsiDB7IWwkIpFHwDhHQVxoZ6r']
+except Exception:
+    GKEY = 'YOUR_GEMINI_KEY'
+    NASA_KEY = 'YOUR_NASA_KEY'
+
+client = genai.Client(api_key=GKEY)
 
 subjects = ['YouTube Coach', 'Asteroid Tutor', 'Business Tutor', 'NASA Live']
 
@@ -31,6 +39,32 @@ def save_user(name, pwhash, pts):
     with open('users.csv', 'w', encoding='utf-8') as f:
         for u, (h, p) in users.items():
             f.write(f'{u},{h},{p}\n')
+
+def record_visit(user):
+    today = datetime.date.today().isoformat()
+    lines = []
+    if os.path.exists('streaks.csv'):
+        lines = open('streaks.csv', encoding='utf-8').read().splitlines()
+    entry = f'{user},{today}'
+    if entry not in lines:
+        with open('streaks.csv', 'a', encoding='utf-8') as f:
+            f.write(entry + '\n')
+
+def get_dates(user):
+    dates = set()
+    if os.path.exists('streaks.csv'):
+        for line in open('streaks.csv', encoding='utf-8').read().splitlines():
+            if line.startswith(user + ','):
+                dates.add(line.split(',')[1])
+    return dates
+
+def calc_streak(dates):
+    streak = 0
+    day = datetime.date.today()
+    while day.isoformat() in dates:
+        streak += 1
+        day -= datetime.timedelta(days=1)
+    return streak
 
 LOGO = '''<svg width="280" height="80" viewBox="0 0 280 80" xmlns="http://www.w3.org/2000/svg">
 <defs>
@@ -66,7 +100,10 @@ with st.sidebar.expander('⚙️ Settings', expanded=True):
     if picked != st.session_state.active_subject:
         st.session_state.active_subject = picked
         st.rerun()
-    theme = st.radio('Background', ['Dark', 'Light', 'Blue', 'Red', 'Green', 'Rainbow'])
+    theme = st.radio('Background', ['Dark', 'Light', 'Blue', 'Red', 'Green', 'Rainbow', 'Rainy Window'])
+    if theme == 'Rainy Window':
+        st.caption('🔊 Press play for rain sounds:')
+        st.audio('https://cdn.pixabay.com/download/audio/2022/07/04/audio_f52a5754b1.mp3', format='audio/mp3', loop=True)
 
 subject = st.session_state.active_subject
 if subject not in st.session_state.chats:
@@ -111,16 +148,36 @@ themes = {
     'Red': ('#2B0A0A', '#4A1414', '#FFD6D6'),
     'Green': ('#0A2B14', '#14472A', '#D6FFE0'),
     'Rainbow': ('#1A0A2B', '#2B1450', '#FFFFFF'),
+    'Rainy Window': ('#101820', '#1C2833', '#D8E4F0'),
 }
 bg, box, txt = themes[theme]
 inputbg, inputtxt = '#1E2130', '#FAFAFA'
 
-rainbow_css = '''.stApp { background: linear-gradient(135deg, #ff0055, #ff9900, #ffee00, #00cc66, #0099ff, #9900ff) fixed !important; }
-[data-testid="stHeader"], [data-testid="stBottom"], [data-testid="stBottom"] > div, [data-testid="stBottomBlockContainer"] { background: transparent !important; }''' if theme == 'Rainbow' else ''
+extra_css = ''
+if theme == 'Rainbow':
+    extra_css = '''.stApp { background: linear-gradient(135deg, #ff0055, #ff9900, #ffee00, #00cc66, #0099ff, #9900ff) fixed !important; }
+[data-testid="stHeader"], [data-testid="stBottom"], [data-testid="stBottom"] > div, [data-testid="stBottomBlockContainer"] { background: transparent !important; }'''
+elif theme == 'Rainy Window':
+    extra_css = '''
+.stApp { background: linear-gradient(180deg, #1a2733 0%, #101820 100%) fixed !important; }
+.stApp::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(transparent 0%, rgba(174,214,241,0.45) 90%, transparent 100%),
+                    linear-gradient(transparent 0%, rgba(174,214,241,0.3) 90%, transparent 100%);
+  background-size: 2px 90px, 1px 60px;
+  background-position: 0 0, 40px -30px;
+  background-repeat: repeat;
+  animation: rainfall 0.7s linear infinite; opacity: 0.5; }
+@keyframes rainfall { 0% { background-position: 0 0, 40px -30px; } 100% { background-position: 0 90px, 40px 60px; } }
+.stApp::after { content: ""; position: fixed; inset: 3vh 3vw; z-index: 0; pointer-events: none;
+  border: 14px solid #3B2F2F; border-radius: 10px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+  background: linear-gradient(90deg, transparent 49.5%, #3B2F2F 49.5%, #3B2F2F 50.5%, transparent 50.5%),
+              linear-gradient(0deg, transparent 49.5%, #3B2F2F 49.5%, #3B2F2F 50.5%, transparent 50.5%); }
+[data-testid="stHeader"], [data-testid="stBottom"], [data-testid="stBottom"] > div, [data-testid="stBottomBlockContainer"] { background: transparent !important; }
+.main .block-container { position: relative; z-index: 1; }'''
 
 st.markdown(f'''<style>
 .stApp {{ background-color: {bg}; }}
-{rainbow_css}
+{extra_css}
 .stApp p, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp label, .stApp span {{ color: {txt}; }}
 [data-testid="stSidebar"] {{ background-color: {box}; }}
 [data-testid="stSidebar"] button {{ text-align: left; }}
@@ -154,6 +211,11 @@ def ask_ai(p):
             time.sleep(3)
     return None
 
+uid = st.session_state.user or 'guest'
+record_visit(uid)
+dates = get_dates(uid)
+streak = calc_streak(dates)
+
 if st.session_state.quiz_qs:
     st.markdown(LOGO, unsafe_allow_html=True)
     st.title('📝 QUIZ TIME')
@@ -181,9 +243,36 @@ if st.session_state.quiz_qs:
         st.rerun()
     st.stop()
 
-st.markdown(LOGO, unsafe_allow_html=True)
+top1, top2, top3, topS = st.columns([5, 1, 1, 1])
+with top1:
+    st.markdown(LOGO, unsafe_allow_html=True)
 
-top1, top2, top3 = st.columns([6, 1, 1])
+with topS:
+    with st.popover(f'🔥 {streak}'):
+        today = datetime.date.today()
+        st.markdown(f'**🔥 {streak}-day streak**')
+        st.markdown(f'*{today.strftime("%B %Y")}*')
+        first_weekday, days_in_month = cal.monthrange(today.year, today.month)
+        grid = 'Mo Tu We Th Fr Sa Su<br>'
+        grid += '&nbsp;&nbsp;&nbsp;' * first_weekday
+        col = first_weekday
+        for d in range(1, days_in_month + 1):
+            iso = datetime.date(today.year, today.month, d).isoformat()
+            if iso in dates:
+                grid += '🔥'
+            elif d < today.day:
+                grid += '·&nbsp;'
+            elif d == today.day:
+                grid += '⭕'
+            else:
+                grid += '&nbsp;&nbsp;'
+            grid += '&nbsp;'
+            col += 1
+            if col % 7 == 0:
+                grid += '<br>'
+        st.markdown(f'<div style="font-family: Consolas, monospace; line-height:1.7">{grid}</div>', unsafe_allow_html=True)
+        st.caption('Open NovaClip every day to grow your streak!')
+
 if st.session_state.user is None:
     with top2:
         if st.button('Log in'):
@@ -226,10 +315,10 @@ if st.session_state.auth_mode in ('login', 'signup'):
                 else:
                     st.error('Wrong username or password')
 
-st.caption(f'Current chat: {subject} | 🏆 {st.session_state.points} pts')
+st.caption(f'Current chat: {subject} | 🏆 {st.session_state.points} pts | 🔥 {streak}-day streak')
 
 if subject == 'YouTube Coach':
-    raw = open('videoss.csv', encoding='utf-8').readlines()
+    raw = open('videos.csv', encoding='utf-8').readlines()
     persona = 'You are NovaClip, a YouTube coach for teen creators 13-18.'
 elif subject == 'Asteroid Tutor':
     raw = open('dataset.csv', encoding='utf-8').readlines()
@@ -298,11 +387,11 @@ st.session_state.genz_prev = genz
 st.session_state.brit_prev = brit
 
 if brit and genz:
-    tone = 'Mix british slang (innit, mate, bloody, cheers, proper) AND gen z slang (fr, no cap, lowkey, W, bet).'
+    tone = 'Mix heavy british slang (innit, mate, bloody, cheers, proper) AND heavy gen z slang (fr fr, no cap, lowkey, W, bet, rizz) in every sentence.'
 elif brit:
     tone = 'Talk in british slang: innit, mate, bloody, cheers, proper, mental, dodgy, gutted, chuffed.'
 elif genz:
-    tone = 'Talk in gen z slang: fr, no cap, lowkey, W, bet, vibe - a lot but keep it readable.'
+    tone = 'Talk in HEAVY gen z slang, use these in almost every sentence: fr fr, no cap, ong, lowkey, highkey, W, L, bet, rizz, cooked, ate, slay, based, bussin, deadass, its giving, valid, hits different, goated, sheesh, glazing, ratio, npc, sigma, delulu. Keep it readable but pack the slang in.'
 else:
     tone = 'Talk in a normal friendly way.'
 
@@ -330,4 +419,6 @@ if q:
                     history.append(('assistant', '🖼️ Bonus NASA space photo: ' + apod.get('url', '')))
             except Exception:
                 pass
+    else:
+        st.error('⚠️ NovaClip could not reach the AI. Check the GEMINI_KEY in Secrets.')
     st.rerun()
