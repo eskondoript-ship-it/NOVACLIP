@@ -1,0 +1,22 @@
+import requests, csv
+
+KEY = "AIzaSyArk6oPMZuZUbaVp9kQffz2eSBY8etOEjQ"  # the YouTube one, not Gemini!
+
+channels = []
+with open("all_channels.csv", encoding="utf-8") as f:
+    channels = list(csv.reader(f))[1:51]  # top 50
+
+rows = []
+for name, cid, subs, views in channels:
+    r = requests.get("https://www.googleapis.com/youtube/v3/search",
+        params={"part": "snippet", "channelId": cid, "order": "date",
+                "maxResults": 5, "type": "video", "key": KEY}).json()
+    for v in r.get("items", []):
+        rows.append([name, v["snippet"]["title"], v["snippet"]["publishedAt"][:10]])
+    print(f"Done: {name}")
+
+with open("videos.csv", "w", newline="", encoding="utf-8") as f:
+    w = csv.writer(f)
+    w.writerow(["channel", "video_title", "published"])
+    w.writerows(rows)
+print(f"Saved {len(rows)} videos")
